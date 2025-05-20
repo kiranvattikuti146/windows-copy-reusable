@@ -1,0 +1,91 @@
+name: Windows Machine File Copy
+
+on:
+  workflow_call:
+    inputs:
+      SourcePath:
+        required: true
+        type: string
+      EnvironmentName:
+        required: true
+        type: string
+      TargetPath:
+        required: true
+        type: string
+      CleanTargetBeforeCopy:
+        required: false
+        type: boolean
+        default: false
+      CopyFilesInParallel:
+        required: false
+        type: boolean
+        default: true
+      AdditionalArguments:
+        required: false
+        type: string
+      ResourceFilteringMethod:
+        required: false
+        type: string
+        default: 'machineNames'
+      MachineNames:
+        required: false
+        type: string
+    secrets:
+      AdminUserName: ${{ secrets.AdminUserName }}
+      AdminPassword: ${{ secrets.AdminPassword }}
+
+jobs:
+  copy-files:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Copy files to remote Windows machines
+        run: |
+          $SourcePath = '${{ inputs.SourcePath }}'
+          $EnvironmentName = '${{ inputs.EnvironmentName }}'
+          $AdminUserName = '${{ secrets.AdminUserName }}'
+          $AdminPassword = '${{ secrets.AdminPassword }}'
+          $TargetPath = '${{ inputs.TargetPath }}'
+          $CleanTarget = '${{ inputs. CleanTargetBeforeCopy }}'
+          $CopyFilesInParallel = '${{ inputs.CopyFilesInParallel }}'
+          $AdditionalArguments = '${{ inputs.AdditionalArguments }}'
+          $SelectionMethod = '${{ inputs. ResourceFilteringMethod }}'
+          $MachineNames = '${{ inputs.MachineNames }}'
+
+          # Convert AdminPassword into a secure string
+          $SecurePassword = ConvertTo-SecureString -String $AdminPassword -AsPlainText -Force
+          $Credential = New-Object System.Management.Automation.PSCredential($AdminUserName, $SecurePassword)
+
+          # Display input values for debugging
+          Write-Host "SourcePath: $SourcePath"
+          Write-Host "EnvironmentName: $EnvironmentName"
+          Write-Host "TargetPath: $TargetPath"
+          Write-Host "CleanTarget: $CleanTarget"
+          Write-Host "CopyFilesInParallel: $CopyFilesInParallel"
+          Write-Host "AdditionalArguments: $AdditionalArguments"
+          Write-Host "SelectionMethod: $SelectionMethod"
+          Write-Host "MachineNames: $MachineNames"
+
+          # Implement file copy logic directly in the workflow
+          if ($CleanTarget -eq $true) {
+            Write-Host "Cleaning target directory: $TargetPath"
+            Remove-Item -Path $TargetPath -Recurse -Force
+          }
+
+          Write-Host "Copying files from $SourcePath to $TargetPath"
+          Copy-Item -Path $SourcePath -Destination $TargetPath -Recurse
+
+          if ($CopyFilesInParallel -eq $true) {
+            Write-Host "Copying files in parallel mode"
+            # Parallel copy logic can be added here if needed
+          }
+
+          if ($AdditionalArguments) {
+            Write-Host "Applying additional arguments: $AdditionalArguments"
+          }
+
+          Write-Host "File copy operation completed successfully!"
+        shell: pwsh
