@@ -1,52 +1,99 @@
-name: Windows File Copy
+name: PowerShell Task
 
 on:
   workflow_call:
     inputs:
-      SourcePath:
-        description: 'Source path of the files to copy'
+      Machines:
         required: true
         type: string
-      MachineNames:
-        description: 'Comma-separated list of remote Windows machine names'
+      UserName:
         required: true
         type: string
-      AdminUserName:
-        description: 'Admin username for authentication'
+      UserPassword:
         required: true
         type: string
-      AdminPassword:
-        description: 'Admin password for authentication'
+      ScriptType:
         required: true
         type: string
-      TargetPath:
-        description: 'Destination folder path on the remote machines'
-        required: true
-        type: string
-      CleanTarget:
-        description: 'Clean the target folder before copying files'
+      ScriptPath:
         required: false
-        type: boolean
-        default: false
-      CopyFilesInParallel:
-        description: 'Enable parallel file copying'
+        type: string
+      InlineScript:
         required: false
-        type: boolean
-        default: true
+        type: string
+      ScriptArguments:
+        required: false
+        type: string
+      SessionVariables:
+        required: false
+        type: string
 
 jobs:
-  file-copy:
-    runs-on: windows-latest
+  execute-powershell:
+    runs-on: self-hosted
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Perform Windows Machine File Copy
+      - name: Execute PowerShell Script
         run: |
-          echo "SourcePath: ${{ inputs.SourcePath }}"
-          echo "MachineNames: ${{ inputs.MachineNames }}"
-          echo "AdminUserName: ${{ inputs.AdminUserName }}"
-          echo "AdminPassword: ${{ inputs.AdminPassword }}" # Echo for debugging, remove in production
-          echo "TargetPath: ${{ inputs.TargetPath }}"
-          echo "CleanTarget: ${{ inputs.CleanTarget }}"
-          echo "CopyFilesInParallel: ${{ inputs.CopyFilesInParallel }}"
+          try {
+              # Assign inputs to variables
+              $machines = " 10.0.0.5 "
+              $username = "kiran"
+              $password = "Extender#123"
+              $scriptType = "${{ inputs.ScriptType }}"
+              $scriptPath = "${{ inputs.ScriptPath }}"
+              $inlineScript = "${{ inputs.InlineScript }}"
+              $scriptArguments = "${{ inputs.ScriptArguments }}"
+              $sessionVariables = "${{ inputs.SessionVariables }}"
+              $sourcePath = 'C: UsersPublicPublicDocumentsNOTES'
+              $targetPath = 'C: userskiranDesktopNOTES'
+              $cleanTarget = $false
+              $copyFilesInParallel = $true
+               
+              # Convert password to secure string and create a credential object
+              $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+              $credential = New-Object System.Management.Automation.PSCredential ($username, $securePassword)
+
+              # Add the specific IP address to TrustedHosts
+              Set-Item -Path WSMan:\localhost\Client\TrustedHosts -Value $machines -Force
+
+              # Test connectivity to the remote machine
+              Test-Connection -ComputerName $machines -Count 1 -ErrorAction Stop
+
+              # Execute based on ScriptType
+              if ($scriptType -eq 'FilePath') {
+                  if (-not $scriptPath) {
+                      throw "ScriptPath is required when ScriptType is 'FilePath'."
+                  }
+                  Invoke-Command -ComputerName $machines -Credential $credential -FilePath $scriptPath -ArgumentList $scriptArguments
+              } elseif ($scriptType -eq 'Inline') {
+                  if (-not $inlineScript) {
+                      throw "InlineScript is required when ScriptType is 'Inline'."
+                  }
+                  $scriptBlock = [ScriptBlock]::Create($inlineScript)
+                  $pw_result = Invoke-Command -ComputerName $machines -Credential $credential -ScriptBlock $scriptBlock -Verbose
+                  Write-Output $pw_result
+                  Write-Host $pw_result
+              } else {
+                  throw "Invalid ScriptType provided. Valid values are 'FilePath' or 'Inline'."
+              }
+
+              # Additional logic for file copy
+              if ($copyFilesInParallel) {
+                  Write-Host "Copying files in parallel from $sourcePath to $targetPath"
+                  Start-Job -ScriptBlock {
+                      Copy-Item -Path $using:sourcePath -Destination $using:targetPath -Recurse -Force
+                  } | Wait-Job
+              } else {
+                  Write-Host "Copying files sequentially from $sourcePath to $targetPath"
+                  Copy-Item -Path $sourcePath -Destination $targetPath -Recurse -Force
+              }
+
+              # Clean target if requested
+              if ($cleanTarget) {
+                  Write-Host "Cleaning target path: $targetPath"
+                  Remove-Item -Path $targetPath -Recurse -Force
+              }
+          } catch {
+              Write-Error "An error occurred: $_"
+              exit 1
+          }
