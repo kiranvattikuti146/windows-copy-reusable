@@ -1,73 +1,75 @@
-name: PowerShell Task
+reusable:
 
-on:
-  workflow_call:
-    inputs:
-      Machines:
-        required: true
-        type: string
-      UserName:
-        required: true
-        type: string
-      UserPassword:
-        required: true
-        type: string
-      SourcePath:
-        required: true
-        type: string
-      TargetPath:
-        required: true
-        type: string
-      CleanTarget:
-        required: false
-        type: boolean
-      CopyFilesInParallel:
-        required: false
-        type: boolean
+  name: PowerShell Task
 
-jobs:
-  execute-powershell:
-    runs-on: self-hosted
-    steps:
-      - name: Execute PowerShell Script
-        run: |
-          try {
-              # Assign inputs to variables
-              $machines = "${{ inputs.Machines }}"
-              $username = "${{ inputs.UserName }}"
-              $password = "${{ inputs.UserPassword }}"
-              $sourcePath = "${{ inputs.SourcePath }}"
-              $targetPath = "${{ inputs.TargetPath }}"
-              $cleanTarget = ${{ inputs.CleanTarget }}
-              $copyFilesInParallel = ${{ inputs.CopyFilesInParallel }}
+  on:
+    workflow_call:
+      inputs:
+        SourcePath:
+          required: true
+          type: string
+        MachineNames:
+          required: true
+          type: string
+        AdminUserName:
+          required: true
+          type: string
+        AdminPassword:
+          required: true
+          type: string
+        TargetPath:
+          required: true
+          type: string
+        CleanTarget:
+          required: false
+          type: boolean
+        CopyFilesInParallel:
+          required: false
+          type: boolean
 
-              # Convert password to secure string and create a credential object
-              $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
-              $credential = New-Object System.Management.Automation.PSCredential ($username, $securePassword)
+  jobs:
+    execute-powershell:
+      runs-on: self-hosted
+      steps:
+        - name: Execute PowerShell Script
+          run: |
+            try {
+                # Assign inputs to variables
+                $sourcePath = "${{ inputs.SourcePath }}"
+                $machines = "${{ inputs.MachineNames }}"
+                $username = "${{ inputs.AdminUserName }}"
+                $password = "${{ inputs.AdminPassword }}"
+                $targetPath = "${{ inputs.TargetPath }}"
+                $cleanTarget = ${{ inputs.CleanTarget }}
+                $copyFilesInParallel = ${{ inputs.CopyFilesInParallel }}
 
-              # Add the specific IP address to TrustedHosts
-              Set-Item -Path WSMan:\localhost\Client\TrustedHosts -Value $machines -Force
+                # Convert password to secure string and create a credential object
+                $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+                $credential = New-Object System.Management.Automation.PSCredential ($username, $securePassword)
 
-              # Test connectivity to the remote machine
-              Test-Connection -ComputerName $machines -Count 1 -ErrorAction Stop
+                # Add the specific IP address to TrustedHosts
+                Set-Item -Path WSMan:\localhost\Client\TrustedHosts -Value $machines -Force
 
-              # Clean target if requested
-              if ($cleanTarget) {
-                  Write-Host "Cleaning target path: $targetPath"
-                  Remove-Item -Path $targetPath -Recurse -Force
-              }
+                # Test connectivity to the remote machine
+                Test-Connection -ComputerName $machines -Count 1 -ErrorAction Stop
 
-              # Copy files based on parallel or sequential mode
-              if ($copyFilesInParallel) {
-                  Write-Host "Copying files in parallel from $sourcePath to $targetPath"
-                  Start-Job -ScriptBlock {
-                      Copy-Item -Path $using:sourcePath -Destination $using:targetPath -Recurse -Force
-                  } | Wait-Job
-              } else {
-                  Write-Host "Copying files sequentially from $sourcePath to $targetPath"
-                  Copy-Item -Path $sourcePath -Destination $targetPath -Recurse -Force
-              }
-          } catch {
-              Write-Error "An error occurred: $_"
-              exit 1
-          }
+                # Clean target if requested
+                if ($cleanTarget) {
+                    Write-Host "Cleaning target path: $targetPath"
+                    Remove-Item -Path $targetPath -Recurse -Force
+                }
+
+                # Copy files based on parallel or sequential mode
+                if ($copyFilesInParallel) {
+                    Write-Host "Copying files in parallel from $sourcePath to $targetPath"
+                    Start-Job -ScriptBlock {
+                        Copy-Item -Path $using:sourcePath -Destination $using:targetPath -Recurse -Force
+                    } | Wait-Job
+                } else {
+                    Write-Host "Copying files sequentially from $sourcePath to $targetPath"
+                    Copy-Item -Path $sourcePath -Destination $targetPath -Recurse -Force
+                }
+            } catch {
+                Write-Error "An error occurred: $_"
+                exit 1
+            }
