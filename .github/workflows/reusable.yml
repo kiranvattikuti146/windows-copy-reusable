@@ -12,21 +12,18 @@ on:
       UserPassword:
         required: true
         type: string
-      ScriptType:
+      SourcePath:
         required: true
         type: string
-      ScriptPath:
-        required: false
+      TargetPath:
+        required: true
         type: string
-      InlineScript:
+      CleanTarget:
         required: false
-        type: string
-      ScriptArguments:
+        type: boolean
+      CopyFilesInParallel:
         required: false
-        type: string
-      SessionVariables:
-        required: false
-        type: string
+        type: boolean
 
 jobs:
   execute-powershell:
@@ -36,19 +33,14 @@ jobs:
         run: |
           try {
               # Assign inputs to variables
-              $machines = " 10.0.0.5 "
-              $username = "kiran"
-              $password = "Extender#123"
-              $scriptType = "${{ inputs.ScriptType }}"
-              $scriptPath = "${{ inputs.ScriptPath }}"
-              $inlineScript = "${{ inputs.InlineScript }}"
-              $scriptArguments = "${{ inputs.ScriptArguments }}"
-              $sessionVariables = "${{ inputs.SessionVariables }}"
-              $sourcePath = 'C: UsersPublicPublicDocumentsNOTES'
-              $targetPath = 'C: userskiranDesktopNOTES'
-              $cleanTarget = $false
-              $copyFilesInParallel = $true
-               
+              $machines = "${{ inputs.Machines }}"
+              $username = "${{ inputs.UserName }}"
+              $password = "${{ inputs.UserPassword }}"
+              $sourcePath = "${{ inputs.SourcePath }}"
+              $targetPath = "${{ inputs.TargetPath }}"
+              $cleanTarget = ${{ inputs.CleanTarget }}
+              $copyFilesInParallel = ${{ inputs.CopyFilesInParallel }}
+
               # Convert password to secure string and create a credential object
               $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
               $credential = New-Object System.Management.Automation.PSCredential ($username, $securePassword)
@@ -59,25 +51,13 @@ jobs:
               # Test connectivity to the remote machine
               Test-Connection -ComputerName $machines -Count 1 -ErrorAction Stop
 
-              # Execute based on ScriptType
-              if ($scriptType -eq 'FilePath') {
-                  if (-not $scriptPath) {
-                      throw "ScriptPath is required when ScriptType is 'FilePath'."
-                  }
-                  Invoke-Command -ComputerName $machines -Credential $credential -FilePath $scriptPath -ArgumentList $scriptArguments
-              } elseif ($scriptType -eq 'Inline') {
-                  if (-not $inlineScript) {
-                      throw "InlineScript is required when ScriptType is 'Inline'."
-                  }
-                  $scriptBlock = [ScriptBlock]::Create($inlineScript)
-                  $pw_result = Invoke-Command -ComputerName $machines -Credential $credential -ScriptBlock $scriptBlock -Verbose
-                  Write-Output $pw_result
-                  Write-Host $pw_result
-              } else {
-                  throw "Invalid ScriptType provided. Valid values are 'FilePath' or 'Inline'."
+              # Clean target if requested
+              if ($cleanTarget) {
+                  Write-Host "Cleaning target path: $targetPath"
+                  Remove-Item -Path $targetPath -Recurse -Force
               }
 
-              # Additional logic for file copy
+              # Copy files based on parallel or sequential mode
               if ($copyFilesInParallel) {
                   Write-Host "Copying files in parallel from $sourcePath to $targetPath"
                   Start-Job -ScriptBlock {
@@ -86,12 +66,6 @@ jobs:
               } else {
                   Write-Host "Copying files sequentially from $sourcePath to $targetPath"
                   Copy-Item -Path $sourcePath -Destination $targetPath -Recurse -Force
-              }
-
-              # Clean target if requested
-              if ($cleanTarget) {
-                  Write-Host "Cleaning target path: $targetPath"
-                  Remove-Item -Path $targetPath -Recurse -Force
               }
           } catch {
               Write-Error "An error occurred: $_"
