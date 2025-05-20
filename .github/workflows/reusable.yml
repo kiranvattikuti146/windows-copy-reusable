@@ -29,11 +29,7 @@ on:
         required: false
         type: boolean
         default: true
-      AdditionalArguments:
-        description: 'Additional arguments for the task'
-        required: false
-        type: string
-
+    
 jobs:
   file-copy:
     runs-on: windows-latest
@@ -49,4 +45,4 @@ jobs:
           echo "TargetPath: ${{ inputs.TargetPath }}"
           echo "CleanTarget: ${{ inputs.CleanTarget }}"
           echo "CopyFilesInParallel: ${{ inputs.CopyFilesInParallel }}"
-          echo "AdditionalArguments: ${{ inputs.AdditionalArguments }}"
+        
