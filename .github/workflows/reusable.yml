@@ -15,10 +15,6 @@ on:
         description: 'Admin username for authentication'
         required: true
         type: string
-      AdminPassword:
-        description: 'Admin password for authentication'
-        required: true
-        type: string
       TargetPath:
         description: 'Destination folder path on the remote machines'
         required: true
