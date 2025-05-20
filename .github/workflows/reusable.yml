@@ -15,6 +15,10 @@ on:
         description: 'Admin username for authentication'
         required: true
         type: string
+      AdminPassword:
+        description: 'Admin password for authentication'
+        required: true
+        type: string
       TargetPath:
         description: 'Destination folder path on the remote machines'
         required: true
@@ -29,7 +33,7 @@ on:
         required: false
         type: boolean
         default: true
-    
+
 jobs:
   file-copy:
     runs-on: windows-latest
@@ -42,7 +46,7 @@ jobs:
           echo "SourcePath: ${{ inputs.SourcePath }}"
           echo "MachineNames: ${{ inputs.MachineNames }}"
           echo "AdminUserName: ${{ inputs.AdminUserName }}"
+          echo "AdminPassword: ${{ inputs.AdminPassword }}" # Echo for debugging, remove in production
           echo "TargetPath: ${{ inputs.TargetPath }}"
           echo "CleanTarget: ${{ inputs.CleanTarget }}"
           echo "CopyFilesInParallel: ${{ inputs.CopyFilesInParallel }}"
-        
