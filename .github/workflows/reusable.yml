@@ -54,5 +54,3 @@ jobs:
           echo "CleanTarget: ${{ inputs.CleanTarget }}"
           echo "CopyFilesInParallel: ${{ inputs.CopyFilesInParallel }}"
           echo "AdditionalArguments: ${{ inputs.AdditionalArguments }}"
-        env:
-          ADMIN_PASSWORD: ${{ inputs.AdminPassword }}
